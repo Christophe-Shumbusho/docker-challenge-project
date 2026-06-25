@@ -7,7 +7,6 @@ FROM backend-base AS backend-dev
 COPY backend/ ./
 CMD ["npm", "run", "dev"]
 
-
 FROM backend-base AS backend-test
 COPY backend/ ./
 RUN npm test
