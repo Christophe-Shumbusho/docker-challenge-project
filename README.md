@@ -6,7 +6,7 @@ This is a full-stack todo application used as a Docker challenge. Your job is to
 
 ---
 
-## Application Architecture
+## Application Architectur
 
 ![image](./todoArchitecture.png)
 
