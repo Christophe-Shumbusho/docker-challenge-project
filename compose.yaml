@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.6
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+    depends_on:
+      - backend
+      - frontend
+
+  backend:
+    build:
+      context: .
+      target: backend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=todo_user
+      - MYSQL_PASSWORD=todo_pass
+      - MYSQL_DATABASE=todos_db
+      - MYSQL_DB=todos_db 
+      - DB_NAME=todos_db
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=PathPrefix(`/api`)
+      - traefik.http.services.backend.loadbalancer.server.port=3000
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app/backend
+          ignore:
+            - node_modules/
+
+  frontend:
+    build:
+      context: .
+      target: frontend-dev
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend.rule=PathPrefix(`/`)
+      - traefik.http.services.frontend.loadbalancer.server.port=5173
+    develop:
+      watch:
+        - action: sync
+          path: ./client
+          target: /app/client
+          ignore:
+            - node_modules/
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: todos_db
+      MYSQL_USER: todo_user
+      MYSQL_PASSWORD: todo_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  
+  phpmyadmin:
+    image: phpmyadmin:latest
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pma.rule=Host(`db.localhost`)
+      - traefik.http.services.pma.loadbalancer.server.port=80
+    depends_on:
+      - db
+
+volumes:
+  db_data:
